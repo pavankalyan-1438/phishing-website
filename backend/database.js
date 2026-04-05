@@ -28,7 +28,7 @@ async function getDb() {
     const bcrypt = require("bcryptjs");
     const adminCount = await dbInstance.collection("admins").countDocuments();
     if (adminCount === 0) {
-        const hashedPassword = await bcrypt.hash("admin123", 10);
+        const hashedPassword = await bcrypt.hash("Phishing$$1234", 10);
         await dbInstance.collection("admins").insertOne({
             email: "admin@example.com",
             password: hashedPassword,
