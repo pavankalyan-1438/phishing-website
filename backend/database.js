@@ -24,6 +24,19 @@ async function getDb() {
     await dbInstance.collection("login_attempts").createIndex({ createdAt: -1 });
     await dbInstance.collection("login_attempts").createIndex({ status: 1 });
 
+    // Create a default admin if none exists so you can log in!
+    const bcrypt = require("bcryptjs");
+    const adminCount = await dbInstance.collection("admins").countDocuments();
+    if (adminCount === 0) {
+        const hashedPassword = await bcrypt.hash("admin123", 10);
+        await dbInstance.collection("admins").insertOne({
+            email: "admin@example.com",
+            password: hashedPassword,
+            createdAt: new Date().toISOString()
+        });
+        console.log("✅ Created default admin account");
+    }
+
     return dbInstance;
 }
 
