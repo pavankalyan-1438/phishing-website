@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { io } from "socket.io-client";
 import { 
   LogOut, ShieldAlert, Activity, Users, MapPin, Search, Server, Download, Zap
 } from "lucide-react";
@@ -60,7 +59,14 @@ export default function AdminDashboard() {
           return;
         }
 
-        setLogs(await logsRes.json());
+        const newLogs = await logsRes.json();
+        
+        setLogs(prev => {
+          if (prev.length > 0 && newLogs.length > prev.length) {
+            setLiveCount(c => c + 1);
+          }
+          return newLogs;
+        });
         setStats(await statsRes.json());
       } catch (error) {
         console.error("Failed to fetch dashboard data", error);
@@ -71,22 +77,10 @@ export default function AdminDashboard() {
 
     fetchData();
 
-    // Socket.IO: connect for real-time updates
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-    const socket = io(apiUrl);
+    // Fallback to polling since Serverless doesn't support WebSockets
+    const interval = setInterval(fetchData, 3000);
 
-    socket.on("new-login", (newLog: LoginAttempt) => {
-      // Prepend the new log to the top of the table instantly
-      setLogs(prev => [newLog, ...prev]);
-      // Bump total count
-      setStats(prev => ({ ...prev, totalAttempts: prev.totalAttempts + 1 }));
-      // Flash the live indicator
-      setLiveCount(c => c + 1);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const handleLogout = () => {

@@ -29,8 +29,14 @@ const authMiddleware = (req, res, next) => {
 router.get("/logs", authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const logs = await db.all(`SELECT * FROM login_attempts ORDER BY createdAt DESC`);
-        res.json(logs);
+        const logs = await db.collection("login_attempts")
+            .find({})
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        // Map _id to id so the frontend doesn't break
+        const mappedLogs = logs.map(l => ({ ...l, id: l._id }));
+        res.json(mappedLogs);
     } catch (err) {
         console.error("Error fetching logs:", err);
         res.status(500).json({ message: "Server error" });
@@ -42,19 +48,22 @@ router.get("/logs", authMiddleware, async (req, res) => {
 router.get("/stats", authMiddleware, async (req, res) => {
     try {
         const db = await getDb();
-        const { totalAttempts } = await db.get(`SELECT COUNT(*) as totalAttempts FROM login_attempts`);
+        const totalAttempts = await db.collection("login_attempts").countDocuments();
         
-        const dailyStats = await db.all(`
-            SELECT strftime('%Y-%m-%d', createdAt) as date, COUNT(*) as attempts 
-            FROM login_attempts 
-            GROUP BY date 
-            ORDER BY date ASC
-        `);
+        const dailyStats = await db.collection("login_attempts").aggregate([
+            {
+                $group: {
+                    _id: { $substr: ["$createdAt", 0, 10] },
+                    attempts: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]).toArray();
 
         res.json({
             totalAttempts: totalAttempts || 0,
             dailyStats: dailyStats.map(stat => ({
-                date: stat.date,
+                date: stat._id,
                 attempts: stat.attempts
             }))
         });

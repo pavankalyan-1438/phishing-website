@@ -1,5 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
-const { open } = require('sqlite');
+const { MongoClient } = require("mongodb");
 
 let dbInstance = null;
 
@@ -8,37 +7,22 @@ async function getDb() {
         return dbInstance;
     }
 
-    dbInstance = await open({
-        filename: './database.sqlite',
-        driver: sqlite3.Database
-    });
+    // We URL-encode the '@' in your password to '%40' so MongoDB parses it correctly!
+    const uri = process.env.MONGO_URI || "mongodb+srv://Phishing_Web:Pavan%401436@cluster0.2d17lem.mongodb.net/?appName=Cluster0";
+    
+    if (!uri) {
+        console.error("⚠️ MONGO_URI is missing from environment variables!");
+        throw new Error("MONGO_URI environment variable is not defined.");
+    }
 
-    // Performance optimizations
-    await dbInstance.exec('PRAGMA journal_mode = WAL;');
-    await dbInstance.exec('PRAGMA foreign_keys = ON;');
+    const client = new MongoClient(uri);
+    await client.connect();
+    dbInstance = client.db("phishing_db");
 
-    // Schema Initialization
-    await dbInstance.exec(`
-        CREATE TABLE IF NOT EXISTS admins (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        
-        CREATE TABLE IF NOT EXISTS login_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            password TEXT NOT NULL,
-            ipAddress TEXT,
-            userAgent TEXT,
-            status TEXT CHECK(status IN ('SUCCESS', 'FAILED')),
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        
-        CREATE INDEX IF NOT EXISTS idx_createdAt ON login_attempts(createdAt DESC);
-        CREATE INDEX IF NOT EXISTS idx_status ON login_attempts(status);
-    `);
+    // Schema Initialization (Indexes)
+    await dbInstance.collection("admins").createIndex({ email: 1 }, { unique: true });
+    await dbInstance.collection("login_attempts").createIndex({ createdAt: -1 });
+    await dbInstance.collection("login_attempts").createIndex({ status: 1 });
 
     return dbInstance;
 }

