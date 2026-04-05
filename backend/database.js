@@ -30,7 +30,7 @@ async function getDb() {
     if (adminCount === 0) {
         const hashedPassword = await bcrypt.hash("Phishing$$1234", 10);
         await dbInstance.collection("admins").insertOne({
-            email: "admin@example.com",
+            email: "phishingweb@gmail.com",
             password: hashedPassword,
             createdAt: new Date().toISOString()
         });
